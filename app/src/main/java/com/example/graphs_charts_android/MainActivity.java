@@ -1,109 +1,123 @@
 package com.example.graphs_charts_android;
 
-import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.graphs_charts_android.datapoints.XYValue;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.DataPointInterface;
+import com.jjoe64.graphview.series.OnDataPointTapListener;
 import com.jjoe64.graphview.series.PointsGraphSeries;
+import com.jjoe64.graphview.series.Series;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
-
     private static final String TAG = "MainActivity";
 
+    //add PointsGraphSeries of DataPoint type
     PointsGraphSeries<DataPoint> xySeries;
 
-    private Button btnAddPt;
+    PointsGraphSeries<DataPoint> onClickSeries;
 
-    private EditText mX, mY;
-
+    //create graphview object
     GraphView mScatterPlot;
 
-    private ArrayList<XYValue> xyValueArray;
+    //make xyValueArray global
+    ArrayList<XYValue> xyValueArray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnAddPt = findViewById(R.id.btnAddPt);
-        mX = findViewById(R.id.numX);
-        mY = findViewById(R.id.numY);
-        mScatterPlot = findViewById(R.id.scatterPlot);
-        xyValueArray = new ArrayList<>();
-        init();
-    }
+        //declare graphview object
+        mScatterPlot = (GraphView) findViewById(R.id.scatterPlot);
 
-    private void init() {
         xySeries = new PointsGraphSeries<>();
 
-        btnAddPt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (!mX.getText().toString().equals("") && !mY.getText().toString().equals("")) {
-                    double x = Double.parseDouble(mX.getText().toString().trim());
-                    double y = Double.parseDouble(mY.getText().toString().trim());
-                    Log.d(TAG, "onClick: Adding a new point. (x,y): (" + x + "," + y + ")");
-                    xyValueArray.add(new XYValue(x, y));
-                    init();
-                } else {
-                    toastMessage("You must fill out both fields!");
-                }
-            }
-        });
-
-        // little bit of exception handling in case there is no data
-        if (xyValueArray.size() != 0) {
-            createScatterPlot();
-        } else {
-            Log.d(TAG, "onCreate: No data to plot.");
+        //generate two lists of random values, one for x and one for y.
+        xyValueArray = new ArrayList<>();
+        double start = -100;
+        double end = 100;
+        for (int i = 0; i < 40; i++) {
+            double randomX = new Random().nextDouble();
+            double randomY = new Random().nextDouble();
+            double x = start + (randomX * (end - start));
+            double y = start + (randomY * (end - start));
+            xyValueArray.add(new XYValue(x, y));
         }
+        //sort it in ASC order
+        xyValueArray = sortArray(xyValueArray);
+        //add the data to the series
+        for (int i = 0; i < xyValueArray.size(); i++) {
+            double x = xyValueArray.get(i).getX();
+            double y = xyValueArray.get(i).getY();
+            xySeries.appendData(new DataPoint(x, y), true, 1000);
+        }
+
+        createScatterPlot();
+
+
     }
 
     private void createScatterPlot() {
-        Log.d(TAG, "createScatterPlot: Creating a scatter plot.");
+        Log.d(TAG, "createScatterPlot: Creating scatter plot.");
 
-        // sort the array of xy values
-        xyValueArray = sortArray(xyValueArray);
 
-        // add the data to the series
-        for (int i = 0; i < xyValueArray.size(); i++) {
-            try {
-                double x = xyValueArray.get(i).getX();
-                double y = xyValueArray.get(i).getY();
-                xySeries.appendData(new DataPoint(x, y), true, 1000);
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "createScatterPlot: IllegalArgumentException: " + e.getMessage());
+        xySeries.setOnDataPointTapListener(new OnDataPointTapListener() {
+            @Override
+            public void onTap(Series series, DataPointInterface dataPoint) {
+                Log.d(TAG, "onTap: You clicked on: (" + dataPoint.getX() +
+                        "," + dataPoint.getY() + ")");
+                //declare new series
+                onClickSeries = new PointsGraphSeries<>();
+
+                onClickSeries.appendData(new DataPoint(dataPoint.getX(), dataPoint.getY()), true, 100);
+
+                onClickSeries.setShape(PointsGraphSeries.Shape.RECTANGLE);
+
+                onClickSeries.setColor(Color.RED);
+
+                onClickSeries.setSize(25f);
+
+                mScatterPlot.removeAllSeries();
+
+                mScatterPlot.addSeries(onClickSeries);
+
+                toastMessage("x = " + dataPoint.getX() + "\n" +
+                        "y = " + dataPoint.getY());
+
+                createScatterPlot();
+
             }
-        }
+        });
 
-        // set some properties
+
+        //set some properties
         xySeries.setShape(PointsGraphSeries.Shape.RECTANGLE);
         xySeries.setColor(Color.BLUE);
         xySeries.setSize(20f);
 
-        // set scrollable and scalable
+        //set Scrollable and Scaleable
         mScatterPlot.getViewport().setScalable(true);
         mScatterPlot.getViewport().setScalableY(true);
         mScatterPlot.getViewport().setScrollable(true);
         mScatterPlot.getViewport().setScrollableY(true);
 
-        // set manual y bounds
+        //set manual x bounds
         mScatterPlot.getViewport().setYAxisBoundsManual(true);
         mScatterPlot.getViewport().setMaxY(150);
         mScatterPlot.getViewport().setMinY(-150);
 
-        // set manual x bounds
+        //set manual y bounds
         mScatterPlot.getViewport().setXAxisBoundsManual(true);
         mScatterPlot.getViewport().setMaxX(150);
         mScatterPlot.getViewport().setMinX(-150);
@@ -111,6 +125,12 @@ public class MainActivity extends AppCompatActivity {
         mScatterPlot.addSeries(xySeries);
     }
 
+    /**
+     * Sorts an ArrayList<XYValue> with respect to the x values.
+     *
+     * @param array
+     * @return
+     */
     private ArrayList<XYValue> sortArray(ArrayList<XYValue> array) {
         /*
         //Sorts the xyValues in Ascending order to prepare them for the PointsGraphSeries<DataSet>
@@ -120,7 +140,6 @@ public class MainActivity extends AppCompatActivity {
         int count = 0;
         Log.d(TAG, "sortArray: Sorting the XYArray.");
 
-
         while (true) {
             m--;
             if (m <= 0) {
@@ -128,6 +147,11 @@ public class MainActivity extends AppCompatActivity {
             }
             Log.d(TAG, "sortArray: m = " + m);
             try {
+                //print out the y entrys so we know what the order looks like
+                //Log.d(TAG, "sortArray: Order:");
+                //for(int n = 0;n < array.size();n++){
+                //Log.d(TAG, "sortArray: " + array.get(n).getY());
+                //}
                 double tempY = array.get(m - 1).getY();
                 double tempX = array.get(m - 1).getX();
                 if (tempX > array.get(m).getX()) {
@@ -135,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
                     array.get(m).setY(tempY);
                     array.get(m - 1).setX(array.get(m).getX());
                     array.get(m).setX(tempX);
-                } else if (tempX == array.get(m).getX()) {
+                } else if (tempY == array.get(m).getY()) {
                     count++;
                     Log.d(TAG, "sortArray: count = " + count);
                 } else if (array.get(m).getX() > array.get(m - 1).getX()) {
@@ -155,6 +179,7 @@ public class MainActivity extends AppCompatActivity {
         return array;
     }
 
+
     /**
      * customizable toast
      *
@@ -163,4 +188,6 @@ public class MainActivity extends AppCompatActivity {
     private void toastMessage(String message) {
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
     }
+
+
 }
